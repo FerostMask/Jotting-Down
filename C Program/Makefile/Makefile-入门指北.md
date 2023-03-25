@@ -1,10 +1,10 @@
 # 前言
 
-C语言程序从代码到可执行文件（\*.exe）需要经过预编译、编译、汇编和链接这几个步骤。每当源文件（\*.c）或源文件所包含的头文件（\*.h）做出修改后，我们都需要对这些源文件重新执行上述几个步骤，以使修改效果显现在可执行文件中。
+C语言程序从代码到可执行文件（\*.exe）需要经过预处理、编译、汇编和链接这几个步骤。每当修改源文件（\*.c）或源文件所包含的头文件（\*.h）后，我们都需要重新执行上述几个步骤，以得到修改后的程序。
 
-> 通常将预编译、编译和汇编这三个步骤统称为编译。
+> 通常将预处理、编译和汇编这三个步骤统称为编译。
 
-一个项目中通常有多个源文件，如果只修改其中一个源文件，就对所有源文件重新执行编译、链接步骤，就太浪费时间了。因此十分有必要引入Makefile工具：Makefile工具可以根据文件依赖，自动找出那些需要重新编译和链接的源文件，并对它们执行相应的动作。
+一个项目通常有多个源文件，如果只修改其中一个，就对所有源文件重新执行编译、链接步骤，就太浪费时间了。因此十分有必要引入 Makefile 工具：Makefile 工具可以根据文件依赖，自动找出那些需要重新编译和链接的源文件，并对它们执行相应的动作。
 
 ![编译链接过程](.\编译链接过程.png)
 
@@ -23,19 +23,20 @@ Release:        22.04
 Codename:       jammy
 ```
 
-可以看到，我使用Ubuntu系统，且系统发行版本是22.04。如果你是Windows系统，则可以在`启用或关闭 Windows 功能`中点击开启`适用于 Linux 的 Windows 子系统`，并在微软商店中下载和安装Ubuntu系统，以获得与我一致的代码编写环境。
+可以看到，我使用Ubuntu系统，且系统发行版本是22.04。如果你是Windows系统，则可以在`启用或关闭 Windows 功能`中点击开启`适用于 Linux 的 Windows 子系统`，并在微软商店中下载和安装Ubuntu系统，以获得与我一致的代码编写环境。具体步骤可以参考：[安装 WSL](https://learn.microsoft.com/zh-cn/windows/wsl/install)。
+
+相比 `vim` 如果你更熟悉 `VSCode` 的操作，则可以参考：[开始通过 WSL 使用 VS Code](https://learn.microsoft.com/zh-cn/windows/wsl/tutorials/wsl-vscode) 来搭建自己熟悉的代码编写环境。
 
 如果你在阅读或实践过程中遇到任何问题，欢迎在评论区中留下你的疑问，我们会尽力尝试解答。
 
 # 从代码编译开始
 
-在开始编写Makefile前，我们先写一段简单的代码，并尝试使用编译工具链将代码变为可执行文件。
+在开始编写 Makefile 前，我们先写一段简单的代码，并尝试使用编译工具链将代码变为可执行文件。
 
 ## 编写简单的代码
 
-**"main.c"**
-
 ```c
+/* main.c */
 #include <stdio.h>
 
 int main(void)
@@ -49,6 +50,8 @@ int main(void)
 
 编辑完文件后，回到终端，使用编译工具链将代码变为可执行文件：
 
+> 如果你在执行 `gcc main.c -o main` 时遇到问题，很有可能是没有安装 `gcc` 导致的，在终端中输入 `sudo apt-get install build-essential` 以安装所需的编译工具。
+
 ```shell
 gee@JiPing_Desktop:~/workspace/example$ vim main.c
 gee@JiPing_Desktop:~/workspace/example$ gcc main.c -o main
@@ -58,11 +61,9 @@ gee@JiPing_Desktop:~/workspace/example$ ./main
 Hello from main!
 ```
 
-可以看到，我们顺利的得到了可执行文件，并且执行结果也符合预期。
+可以看到，我们顺利得到了可执行文件，并且执行结果也符合预期。
 
-> 如果你在执行 `gcc main.c -o main` 时遇到问题，很有可能是没有安装 `gcc` 导致的，在终端中输入 `sudo apt-get install build-essential` 以安装所需的编译工具。
-
-上面所执行的几条命令中，`gcc main.c -o main` 这条命令负责调用编译工具链，将源文件 `main.c` 编译、链接为可执行文件 `main`。这里的GCC(GNU Compiler Collection)就是上文中提及的编译工具链，它是预编译、编译、汇编、链接所使用到的各种工具的集合，它们彼此搭配协作，才最终得到我们所需的可执行文件。
+上面所执行的几条命令中，`gcc main.c -o main` 这条命令负责调用编译工具链，将源文件 `main.c` 编译、链接为可执行文件 `main`。这里的GCC(GNU Compiler Collection)就是上文中提及的编译工具链，它是预处理、编译、汇编、链接所使用到的各种工具的集合，它们彼此搭配协作，才最终得到我们所需的可执行文件。
 
 ![编写简单的代码并得到可执行文件](.\编写简单的代码并得到可执行文件.png)
 
@@ -74,9 +75,8 @@ Hello from main!
 
 ## 编写Makefile并执行make
 
-**"Makefile"**
-
 ```makefile
+# Makefile
 main : main.c
         gcc main.c -o main
 ```
@@ -89,13 +89,12 @@ gee@JiPing_Desktop:~/workspace/example$ make
 make: 'main' is up to date.
 ```
 
-可以看到Makefile给出了它的处理结果 `make: 'main' is up to date.`，意思是 `main` 已经是最新的了，无需执行任何操作。此时我们的 `main.c` 没有做任何修改，也就是说即使重新编译、链接得到一个新的 `main`，它与旧的 `main` 也不会存在任何的不同，所以Makefile没有执行任何的步骤。
+可以看到 Makefile 给出了它的处理结果 `make: 'main' is up to date.`，意思是 `main` 已经是最新的了，无需执行任何操作。此时我们的 `main.c` 没有做任何修改，也就是说即使重新编译、链接得到一个新的 `main`，它与旧的 `main` 也不会存在任何的不同，所以Makefile没有执行任何的步骤。
 
 尝试修改 `main.c` 再执行 `make`，看看这次的结果会怎样：
 
-**"main.c"**
-
 ```c
+/* main.c */
 #include <stdio.h>
 
 int main(void)
@@ -119,13 +118,13 @@ Hello from new main!
 
 ## Makefile三要素
 
-那么问题就来了，Makefile中的两行语句分别是什么意思呢？拆解来看，两行语句可以分为三部分，分别是目标文件、依赖文件和执行语句：
+那么问题就来了，Makefile中的两行语句分别是什么意思呢？拆解来看，两行语句可以分为三部分，分别是目标（target）、依赖（prerequisite）和执行语句（recipe）：
+
+> 延伸思考：目标、依赖和执行语句，三者在Makefile中是否缺一不可？在不修改源文件的前提下尝试修改目标，再执行make时会得到怎样的结果？
 
 ![简单Makefile语句解析](.\简单Makefile语句解析.png)
 
-> 延伸思考：目标文件、依赖文件和执行语句，三者在Makefile中是否缺一不可？尝试修改目标文件命名再执行make，会得到怎样的结果？
-
-上面的例子中，可执行文件 `main` 就是我们想要得到的目标文件，而 `main` 的生成依赖于 `main.c`，所以将 `main.c` 填写在依赖文件的位置。在发现目标文件不存在，或依赖文件有所修改后，Makefile就会执行下方的执行语句，其任务通常是生成目标文件。
+上面的例子中，可执行文件 `main` 就是我们想要得到的目标，而 `main` 的生成依赖于 `main.c`，所以将 `main.c` 填写在依赖的位置。在发现目标文件不存在，或依赖的文件有所修改后，Makefile 就会执行下方的执行语句，其任务通常是生成目标文件。
 
 > [**延伸阅读**](https://www.gnu.org/software/make/manual/make.html#Rule-Introduction)
 >
@@ -137,20 +136,20 @@ Hello from new main!
 >
 > A *recipe* is an action that `make` carries out. A recipe may have more than one command, either on the same line or each on its own line. **Please note:** you need to put a tab character at the beginning of every recipe line!
 
-## 变量和通配符
+## 当增加源文件和修改源文件名称
 
-回看已经写好的Makefile，会发现其中的内容都是有具体指向的：`main`、`main.c`。试想这样一个场景：我们在文件夹中添加新的源文件 `bar.c`，并将 `main.c` 重命名为 `entry.c`，同时在 `entry.c` 中调用 `bar.c` 中定义的函数，这时再执行 `make` 会得到怎样的结果？
+回看已经写好的Makefile，会发现其中的内容都是有具体指向的：`main`、`main.c`。试想这样一个场景：我们在文件夹中添加新的源文件 `bar.c`，并将 `main.c` 重命名为 `entry.c`，这时再执行 `make` 会得到怎样的结果呢？
 
 > 思考题：在函数 *Print_Progress_Bar* 中，数组 `bar` 的定义和赋值能否由 `char bar[] = PROGRESS_BAR` 改为 `char *bar = PROGRESS_BAR`。为什么？两者有什么不同？
 
-**"bar.c"**
-
 ```c
+/* bar.c */
 #include <stdio.h>
 
 #define PROGRESS_BAR "*************************"
 
-// 输入参数：comp: 完成比例（0% <= comp <= 100%）
+// 输入参数
+// comp: 完成比例（0% ~ 100%）
 void Print_Progress_Bar(float comp)
 {
         char bar[] = PROGRESS_BAR;
@@ -168,9 +167,8 @@ void Print_Progress_Bar(float comp)
 }
 ```
 
-**"entry.c"**
-
 ```c
+/* entry.c */
 #include <stdio.h>
 
 int main(void)
@@ -192,11 +190,10 @@ gee@JiPing_Desktop:~/workspace/example$ make
 make: *** No rule to make target 'main.c', needed by 'main'.  Stop.
 ```
 
-可以看到，`make` 提示“No rule to make target 'main.c', needed by 'main'.”，同时停止继续执行。从提示中我们大致可以猜到，由于找不到依赖文件 `main.c`， `make` 停止了执行。解决问题的办法很简单，根据新的文件命名修改 Makefile 文件（注意gcc命令也要做修改）：
-
-**"Makefile"**
+可以看到，`make` 提示“No rule to make target 'main.c', needed by 'main'.”，并停止了执行。从提示中我们大致可以猜到，由于找不到依赖文件 `main.c`， `make` 停止了执行。解决问题的方法有两种，简单粗暴的做法是：直接根据新的文件命名修改 Makefile 文件（注意gcc命令也要做修改）：
 
 ```makefile
+# Makefile
 main : entry.c bar.c
         gcc entry.c bar.c -o main
 ```
@@ -212,12 +209,77 @@ Hello from new main!
 |********                 |
 ```
 
-这一次 `make` 命令没有再报错，程序执行结果也符合预期。
+这一次 `make` 命令没有再报错。
 
-思考一下，如果 Makefile 继续采用当前的写法，每当添加新的源文件或修改已有源文件名称的时候，都需要我们手动调整 Makefile 文件。当文件数量爆炸多的时候，这样的手动调整显然是十分麻烦的。那有没有什么办法能够解决这个问题，做到以不变应万变呢？这就要介绍接下来的主角：变量和通配符了。
+想象一下，如果我们保持当前的 Makefile 写法，那么之后每次添加源文件，或者修改源文件名称的时候，都需要我们重新修改 Makefile 文件。当文件数量爆炸多的时候，这样的手动调整显然是十分麻烦的。所以我们迫切需要一种更为通用的写法，来免除这些“痛苦”。
+
+## 变量和通配符和wildcard函数
+
+仔细观察源文件的命名 `main.c` 、 `bar.c`，我们会发现它们有着共同的模式（或称为规律）：都以 `.c` 结尾，这意味着可以用这种模式匹配所有源文件，在 Makefile 中我们可以使用 wildcard 函数（wildcard function）来达到这一目的。
+
+### 使用wildcard函数
+
+在 Makefile 中，`$(function arguments)` 的写法用于函数调用， wildcard 函数的使用方法如下：
+
+```makefile
+$(wildcard pattern…)
+```
+
+如果我们想匹配当前目录下的所有源文件，就可以这样写：`$(wildcard *.c)`，其中通配符 `*` 用于匹配任意长度的任何字符，可以是 `main`、`bar`，也可以是其他任何你能想得到的字符组合，后面加上 `.c` 则是要求匹配的字符组合必须以 `.c` 结尾。
+
+当前示例下，`$(wildcard *.c)` 展开后得到的结果就是： `bar.c entry.c`，所以我们的 `Makefile` 文件可以修改为：
+
+```makefile
+# Makefile
+main : $(wildcard *.c)
+        gcc $(wildcard *.c) -o main
+```
+
+修改后保存，再重新执行 `make`，得到的结果与之前一致：（别忘了修改源文件，这里我将进度条进度改为了52% ）
+
+```makefile
+gee@JiPing_Desktop:~/workspace/example$ vim Makefile
+gee@JiPing_Desktop:~/workspace/example$ vim entry.c
+gee@JiPing_Desktop:~/workspace/example$ make
+gcc bar.c entry.c -o main
+gee@JiPing_Desktop:~/workspace/example$ ./main
+Hello from new main!
+|*************            |
+```
+
+### 利用变量
+
+上面的 `Makefile` 还可以再优化一下可读性和效率，我们可以利用变量保存 wildcard 函数展开后的结果。Makefile 中定义变量的形式与C语言类似：`var := value`，调用则和函数调用类似：`$(var)`，所以 `Makefile` 可以进一步修改为：
+
+```makefile
+SRCS := $(wildcard *.c)
+
+main : $(SRCS)
+        gcc $(SRCS) -o main
+```
+
+相比上面的 `Makefile`，进一步修改后的 `Makefile` 减少了一次函数调用，并且增加了可读性。
+
+## 不同的赋值符号
+
+# 动手写进阶的Makefile
+
+## 分析编译过程
+
+## 应对复杂的目录结构
+
+# 丰富Makefile的功能
+
+## 伪目标
 
 # 参考链接
 
 - [如何在 Ubuntu 20.04 上安装 GCC(build-essential)](https://developer.aliyun.com/article/766146)
-
 - [linux - What's the meaning of gcc '-c' and gcc '-o'?](https://stackoverflow.com/questions/43164707/whats-the-meaning-of-gcc-c-and-gcc-o)
+- [GNU make](https://www.gnu.org/software/make/manual/make.html#Rule-Introduction)
+- [make - What does % symbol in Makefile mean](https://unix.stackexchange.com/questions/346322/what-does-symbol-in-makefile-mean)
+- [What do the makefile symbols $@ and $< mean?](https://stackoverflow.com/questions/3220277/what-do-the-makefile-symbols-and-mean)
+
+> 文章名：					《写给初学者的Makefile入门指南》
+> 作者：						吉平.集
+> 写作日期：				2023.3.6 ~ 2023.3.25
