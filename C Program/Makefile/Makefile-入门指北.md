@@ -211,11 +211,11 @@ Hello from new main!
 
 这一次 `make` 命令没有再报错。
 
-想象一下，如果我们保持当前的 Makefile 写法，那么之后每次添加源文件，或者修改源文件名称的时候，都需要我们重新修改 Makefile 文件。当文件数量爆炸多的时候，这样的手动调整显然是十分麻烦的。所以我们迫切需要一种更为通用的写法，来免除这些“痛苦”。
+想象一下，如果我们保持当前的 Makefile 写法，那么之后每次添加源文件，或者修改源文件名称时，都需要我们重新修改 Makefile 文件。当文件数量爆炸多的时候，这样的手动调整显然是十分麻烦的。所以我们迫切需要一种更为通用的写法，来免除这些“痛苦”。
 
 ## 变量和通配符和wildcard函数
 
-仔细观察源文件的命名 `main.c` 、 `bar.c`，我们会发现它们有着共同的模式（或称为规律）：都以 `.c` 结尾，这意味着可以用这种模式匹配所有源文件，在 Makefile 中我们可以使用 wildcard 函数（wildcard function）来达到这一目的。
+仔细观察源文件的命名 `main.c` 、 `bar.c`，我们会发现它们有着共同的模式（或称为规律）：都以 `.c` 结尾，这意味着可以用这种模式匹配所有源文件。在 Makefile 中我们可以使用 wildcard 函数（wildcard function）来达到这一目的。
 
 ### 使用wildcard函数
 
@@ -235,7 +235,7 @@ main : $(wildcard *.c)
         gcc $(wildcard *.c) -o main
 ```
 
-修改后保存，再重新执行 `make`，得到的结果与之前一致：（别忘了修改源文件，这里我将进度条进度改为了52% ）
+修改后保存，再重新执行 `make`，得到的结果与之前一致：（别忘了修改源文件，这里我将进度条从进度33%改为了52% ）
 
 ```makefile
 gee@JiPing_Desktop:~/workspace/example$ vim Makefile
@@ -249,7 +249,7 @@ Hello from new main!
 
 ### 利用变量
 
-上面的 `Makefile` 还可以再优化一下可读性和效率，我们可以利用变量保存 wildcard 函数展开后的结果。Makefile 中定义变量的形式与C语言类似：`var := value`，调用则和函数调用类似：`$(var)`，所以 `Makefile` 可以进一步修改为：
+上面的 `Makefile` 还可以再优化一下可读性和效率，我们可以利用变量保存 wildcard 函数展开后的结果。Makefile 中变量定义的形式与C语言类似：`var := value`，调用则和函数调用类似：`$(var)`，所以 `Makefile` 可以进一步修改为：
 
 ```makefile
 SRCS := $(wildcard *.c)
@@ -260,7 +260,52 @@ main : $(SRCS)
 
 相比上面的 `Makefile`，进一步修改后的 `Makefile` 减少了一次函数调用，并且增加了可读性。
 
-## 不同的赋值符号
+## 变量的赋值和修改
+
+我们在刚才的示例中使用到了赋值符号 `:=` ，该符号与C语言中的赋值符号 `=` 作用效果相同。以下是几个常用符号的简介：
+
+- `=` ：递归赋值[(Recursively Expanded Variable Assignment)](https://www.gnu.org/software/make/manual/html_node/Recursive-Assignment.html)，使用变量进行赋值时，会优先展开引用的变量，示例如下：
+
+```makefile
+foo = $(bar)
+bar = $(ugh)
+ugh = Huh?
+
+all:;echo $(foo)
+# 打印的结果为 Huh?，$(foo)展开得到$(bar)，$(bar)展开得到$(ugh)，$(ugh)展开得到Huh?最终$(foo)展开得到Huh?
+```
+
+- `:=` ：简单赋值[(Simply Expanded Variable Assignment)](https://www.gnu.org/software/make/manual/html_node/Simple-Assignment.html)，最常用的赋值符号：
+
+```makefile
+x := foo
+y := $(x) bar
+x := later
+# 等效于：
+# y := foo bar
+# x := later
+```
+
+- `+=` ：文本增添[(Appending)](https://www.gnu.org/software/make/manual/html_node/Appending.html)，用于向已经定义的变量添加文本：
+
+```makefile
+objects = main.o foo.o bar.o utils.o
+objects += another.o
+# objects最终为main.o foo.o bar.o utils.o another.o
+```
+
+- `?=` ：条件赋值[(Conditional Variable Assignment)](https://www.gnu.org/software/make/manual/html_node/Conditional-Assignment.html)，仅在变量没有定义时创建变量：
+
+```makefile
+FOO ?= bar
+# FOO最终为bar
+```
+
+```makefile
+foo := ugh
+foo ?= Huh?
+# foo最终为ugh
+```
 
 # 动手写进阶的Makefile
 
