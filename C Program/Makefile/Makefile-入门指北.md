@@ -190,7 +190,7 @@ gee@JiPing_Desktop:~/workspace/example$ make
 make: *** No rule to make target 'main.c', needed by 'main'.  Stop.
 ```
 
-可以看到，`make` 提示“No rule to make target 'main.c', needed by 'main'.”，并停止了执行。从提示中我们大致可以猜到，由于找不到依赖文件 `main.c`， `make` 停止了执行。解决问题的方法有两种，简单粗暴的做法是：直接根据新的文件命名修改 Makefile 文件（注意gcc命令也要做修改）：
+可以看到，`make` 提示“No rule to make target 'main.c', needed by 'main'.”，并停止了执行。从提示中我们大致可以猜到，由于找不到依赖文件 `main.c`， `make` 停止了执行。解决问题的方法有两种，简单粗暴的做法是：直接根据新的文件命名修改 Makefile 文件：
 
 ```makefile
 # Makefile
@@ -198,7 +198,7 @@ main : entry.c bar.c
         gcc entry.c bar.c -o main
 ```
 
-回到终端重新执行 `make`：
+由于主函数调用了 `bar.c` 中定义的函数，所以在编译时我们需要将 `bar.c` 一起编译、链接到可执行文件里，同时别忘了把它加进依赖中。修改好后回到终端重新执行 `make`：
 
 ```shell
 gee@JiPing_Desktop:~/workspace/example$ vim Makefile
@@ -260,7 +260,7 @@ main : $(SRCS)
 
 相比上面的 `Makefile`，进一步修改后的 `Makefile` 减少了一次函数调用，并且增加了可读性。
 
-## 变量的赋值和修改
+### 变量的赋值和修改
 
 我们在刚才的示例中使用到了赋值符号 `:=` ，该符号与C语言中的赋值符号 `=` 作用效果相同。以下是几个常用符号的简介：
 
@@ -309,9 +309,52 @@ foo ?= Huh?
 
 # 动手写进阶的Makefile
 
-## 分析编译过程
+到目前为止，我们已经写出一个简单能用的Makefile了，它能应对不太复杂的应用场景，在没有多级目录的情况下已经足够使用。但我们实际应对的场景往往要复杂得多：不同的功能模块会按调用层级区分，将源文件和头文件放入到一个个文件夹当中。
+
+现在让我们先改造一下当前的目录结构，使其更贴合实际应用场景：
+
+> `tree` 命令的作用是以树的形式展现目录结构，你可能无法直接使用该命令，尝试 `sudo apt install tree` 以安装和使用 `tree` 命令。
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ tree
+.
+├── Makefile
+├── bar.c
+├── entry.c
+└── main
+
+gee@JiPing_Desktop:~/workspace/example$ mkdir ./func
+gee@JiPing_Desktop:~/workspace/example$ mv ./bar.c ./func/
+gee@JiPing_Desktop:~/workspace/example$ tree
+.
+├── Makefile
+├── entry.c
+├── func
+│   └── bar.c
+└── main
+```
+
+这里我新建了目录 `func`，并将 `bar.c` 转移到了 `func` 目录下。现在再让我们尝试执行 `make`，看看会发生什么（别忘记修改entry.c）：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ vim entry.c
+gee@JiPing_Desktop:~/workspace/example$ make
+gcc entry.c -o main											<- 缺少bar.c
+/usr/bin/ld: /tmp/ccgUc9na.o: in function `main':
+entry.c:(.text+0x22): undefined reference to `Print_Progress_Bar'
+collect2: error: ld returned 1 exit status
+make: *** [Makefile:4: main] Error 1
+```
+
+我们察觉到执行 `make` 时发生了错误，提示主函数中调用了未定义的函数 `Print_Progress_Bar`，这个函数定义在 `bar.c` 中。仔细观察可以发现 `gcc` 的调用中没有 `bar.c`，这就引发了我们遇到的问题。显然在 `bar.c` 装进 `./func` 目录后，`Makefile` 就找不到 `bar.c` 文件了，所以还需要对 `Makefile` 进行一轮改进，使它可以适应多目录的场景。
 
 ## 应对复杂的目录结构
+
+如果你曾使用过一些 `IDE`，那你可能会对包含路径配置感到熟悉，这要求你将一些文件目录添加到工程配置中去。
+
+## 分析编译过程
+
+
 
 # 丰富Makefile的功能
 
