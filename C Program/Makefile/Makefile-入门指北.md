@@ -235,7 +235,7 @@ main : $(wildcard *.c)
         gcc $(wildcard *.c) -o main
 ```
 
-修改后保存，再重新执行 `make`，得到的结果与之前一致：（别忘了修改源文件，这里我将进度条从进度33%改为了52% ）
+修改后保存，再重新执行 `make`，得到的结果与之前一致：（这里我将进度条从进度33%改为了52%，以确保 `make` 执行编译命令）
 
 ```makefile
 gee@JiPing_Desktop:~/workspace/example$ vim Makefile
@@ -252,6 +252,7 @@ Hello from new main!
 上面的 `Makefile` 还可以再优化一下可读性和效率，我们可以利用变量保存 wildcard 函数展开后的结果。Makefile 中变量定义的形式与C语言类似：`var := value`，调用则和函数调用类似：`$(var)`，所以 `Makefile` 可以进一步修改为：
 
 ```makefile
+# Makefile
 SRCS := $(wildcard *.c)
 
 main : $(SRCS)
@@ -309,9 +310,9 @@ foo ?= Huh?
 
 # 动手写进阶的Makefile
 
-到目前为止，我们已经写出一个简单能用的Makefile了，它能应对不太复杂的应用场景，在没有多级目录的情况下已经足够使用。但我们实际应对的场景往往要复杂得多：不同的功能模块会按调用层级区分，将源文件和头文件放入到一个个文件夹当中。
+到目前为止，我们已经写出一个简单能用的Makefile了，它能应对不太复杂的场景，在没有多级目录的情况下已经足够使用。但我们实际面对的场景往往要复杂得多：源文件和头文件按照功能或层级区分，散落在一个个子文件夹下，这样做更容易管理工程文件，但也带来了一点小麻烦。
 
-现在让我们先改造一下当前的目录结构，使其更贴合实际应用场景：
+先让我们先改造一下当前的目录结构，使其更贴合实际应用场景：
 
 > `tree` 命令的作用是以树的形式展现目录结构，你可能无法直接使用该命令，尝试 `sudo apt install tree` 以安装和使用 `tree` 命令。
 
@@ -334,7 +335,7 @@ gee@JiPing_Desktop:~/workspace/example$ tree
 └── main
 ```
 
-这里我新建了目录 `func`，并将 `bar.c` 转移到了 `func` 目录下。现在再让我们尝试执行 `make`，看看会发生什么（别忘记修改entry.c）：
+这里我新建了目录 `func`，并将 `bar.c` 转移到了 `func` 目录下。现在再让我们尝试执行 `make`，看看会发生什么：
 
 ```shell
 gee@JiPing_Desktop:~/workspace/example$ vim entry.c
@@ -346,11 +347,87 @@ collect2: error: ld returned 1 exit status
 make: *** [Makefile:4: main] Error 1
 ```
 
-我们察觉到执行 `make` 时发生了错误，提示主函数中调用了未定义的函数 `Print_Progress_Bar`，这个函数定义在 `bar.c` 中。仔细观察可以发现 `gcc` 的调用中没有 `bar.c`，这就引发了我们遇到的问题。显然在 `bar.c` 装进 `./func` 目录后，`Makefile` 就找不到 `bar.c` 文件了，所以还需要对 `Makefile` 进行一轮改进，使它可以适应多目录的场景。
+我们察觉到执行 `make` 时发生了错误，提示主函数中调用了未定义的函数 `Print_Progress_Bar`，这个函数定义在 `bar.c` 中。仔细观察可以发现 `gcc` 的调用中缺少 `bar.c`，这就引发了我们遇到的问题。显然在 `bar.c` 装进 `./func` 目录后，`Makefile` 就找不到 `bar.c` 文件了，这就是我们在刚才提到的小麻烦。
 
 ## 应对复杂的目录结构
 
-如果你曾使用过一些 `IDE`，那你可能会对包含路径配置感到熟悉，这要求你将一些文件目录添加到工程配置中去。
+首先还是让我们来看一下 `make` 的报错问题如何解决。方法很简单，在 `./func` 目录下也使用 wildcard 函数匹配一遍源文件，再把这些源文件一同添加到 `SRCS` 变量中就可以了：
+
+```makefile
+# Makefile
+SRCS := $(wildcard *.c)
+SRCS += $(wildcard ./func/*.c)
+
+main : $(SRCS)
+        gcc $(SRCS) -o main
+```
+
+尝试执行下：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ vim Makefile
+gee@JiPing_Desktop:~/workspace/example$ make
+gcc entry.c ./func/bar.c -o main
+```
+
+可以看到问题得到了解决。但这样的解决方案还是存在着缺点的，它不够通用和直观，我们很难从中看出使用了哪些路径。或许还有什么办法能将 `Makefile` 写得更清晰一些。
+
+如果你曾使用过一些 `IDE`，那你可能会对配置路径感到熟悉，这要求你将一些文件目录添加到工程文件配置中去。我们也可以效仿这样的做法，手动将目录添加到 `Makefile` 中去。
+
+```makefile
+# Makefile
+SUBDIR := .
+SUBDIR += ./func
+
+SRCS := $(wildcard *.c)
+SRCS += $(wildcard ./func/*.c)
+
+main : $(SRCS)
+        gcc $(SRCS) -o main
+```
+
+这里新定义了变量 `SUBDIR`，我们将使用它来指定那些存放着源文件和头文件的目录。接下来我们将请出另一个功能强大的函数 foreach 来帮助我们完成一项复杂的功能。
+
+```makefile
+$(foreach var,list,text)
+```
+
+foreach(for each)函数的功能与 Python 和C语言中的 for 函数类似，但会更接近 Python 的 for函数。它的功能用语言描述就是：从 `list` 中逐个取出元素，赋值给 `var`，然后再展开 `text`，下面是一个使用示例。
+
+```makefile
+SUBDIR := .
+SUBDIR += ./func
+
+EXPANDED := $(foreach dir,$(SUBDIR),$(dir)/*.c)
+# 等效于EXPANDED := ./*.c ./func/*.c
+```
+
+![foreach函数](.\foreach函数.png)
+
+有了 foreach 函数，我们就能配合 wildcard 函数，通过指定路径来获取源文件：
+
+```makefile
+# Makefile
+SUBDIR := .
+SUBDIR += ./func
+
+# 获取源文件
+SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
+
+main : $(SRCS)
+        gcc $(SRCS) -o main
+```
+
+在终端里试试效果（可以使用 `rm ./main` 移除可执行文件，来确保 `make` 会执行编译命令）：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ vim ./Makefile
+gee@JiPing_Desktop:~/workspace/example$ rm ./main
+gee@JiPing_Desktop:~/workspace/example$ make
+gcc ./entry.c ./func/bar.c -o main
+```
+
+它可以正常工作，且效果与之前是一致的。现在来看，指定路径的做法较之前并没有太大的优势，我们要做的仍是手动指定目录，只是将获取源文件的任务交给了 foreach 函数来完成。在后面，我们会继续深入了解 Makefile，到时指定路径的优势会逐渐显现。
 
 ## 分析编译过程
 
