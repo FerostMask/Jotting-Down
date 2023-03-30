@@ -492,7 +492,7 @@ gcc -I. -I./func ./entry.c ./func/bar.c -o main
 1. 没有保存 `.o` 文件，这导致我们每次文件变动都要重新执行预处理、编译和汇编来得到目标文件，即使新得到的文件与旧文件完全没有差别（即编译用到的源文件没有任何变化，就跟` bar.c` 一样）。
 2. 有保存 `.o` 文件，则会遇到第二个问题，即依赖中没有指定头文件，这意味着只修改头文件的情况下，源文件不会重新编译得到新的可执行文件！
 
-![一开始的编译过程](D:\projects\Jotting-Down\C Program\Makefile\一开始的编译过程.png)
+![一开始的编译过程](.\一开始的编译过程.png)
 
 为了证明以上两个问题，我们对 `Makefile` 做一些改动：
 
@@ -587,7 +587,7 @@ make: 'main' is up to date.
 
 ## 模式规则和自动变量
 
-我们依旧来解决问题，首先是 `*.o` 文件的保存问题，这个问题其实在上面已经解决了，我们再来看一遍：
+我们还是先来解决问题，首先是 `*.o` 文件的保存问题，这个问题其实在上面已经解决了，我们再来看一遍：
 
 ```makefile
 SUBDIR := .
@@ -606,7 +606,7 @@ main : ./entry.o ./func/bar.o
         gcc -c $(INCS) ./func/bar.c -o ./func/bar.o
 ```
 
-通过手动添加目标和依赖，我们实现了 `*.o` 文件的保存，并且确保了源文件在更新后，只会最小限度的重新编译 `*.o` 文件。现在我们可以利用上符号 `%` 和自动变量，来让 `Makefile` 变得更加通用。首先聚焦于：
+通过手动添加目标和依赖，我们实现了 `*.o` 文件的保存，同时还确保了源文件在更新后，只会在最小限度内重新编译 `*.o` 文件。现在我们可以利用符号 `%` 和自动变量，来让 `Makefile` 变得更加通用。首先聚焦于编译过程：
 
 ```makefile
 ./entry.o : ./entry.c
@@ -616,14 +616,16 @@ main : ./entry.o ./func/bar.o
         gcc -c $(INCS) ./func/bar.c -o ./func/bar.o
 ```
 
-可以发现新添加的、用于生成 `*.o` 文件的目标和依赖，有着相同的书写模式，这意味着存在通用的写法：
+上下比较 `./entry.o` 和 `./func/bar.o` 的目标依赖及执行，可以发现新添加的、用于生成 `*.o` 文件的目标和依赖，有着相同的书写模式，这意味着存在通用的写法：
 
 ```makefile
 %.o : %.c
         gcc -c $(INCS) $^ -o $@
 ```
 
-这里我们用上了 `%` ，它的作用有些难以用语言概括，上述例子中， `%.o` 的作用是匹配所有以 `.o` 结尾的目标；而后面的 `%.c` 的中 `%` 的作用，则是将 `%.o` 中 `%` 的内容原封不动的挪过来用。
+![Makefile编译的通用写法](.\Makefile编译的通用写法.png)
+
+这里我们用上了 `%` ，它的作用有些难以用语言概括，上述例子中， `%.o` 的作用是匹配所有以 `.o` 结尾的目标；而后面的 `%.c` 中 `%` 的作用，则是将 `%.o` 中 `%` 的内容原封不动的挪过来用。
 
 更具体地例子是，`%.o` 可能匹配到目标 `./entry.o` 或 `./func/bar.o`，这样 `%` 的内容就会是 `./entry` 或 `./func/bar`，最后交给 `%.c` 时就变成了 `./entry.c` 或 `./func/bar.c`。
 
@@ -648,7 +650,7 @@ main : ./entry.o ./func/bar.o
 
 ## patsubst 函数
 
-接下来再让我们聚焦于链接步骤，它需要指定 `*.o` 文件：
+接下来再让我们关注链接步骤，它需要指定 `*.o` 文件：
 
 ```makefile
 main : ./entry.o ./func/bar.o
@@ -662,13 +664,13 @@ main : ./entry.c ./func/bar.c
         gcc ./entry.c ./func/bar.c -o main
 ```
 
-这给了我们一点提示，是不是能够通过 wildcard 函数来实现通用的写法？很可惜，最开始我们只有 `*.c` 文件， `*.o` 文件是后来生成的。但转换一下思路，我们在获取所有源文件后，直接将 `.c` 后缀替换为 `.o`，不就能得到所有的 `.o` 文件了吗？正巧 patsubst 函数可以用于模式文本替换。
+这给了我们一点提示，是不是能够通过 wildcard 函数来实现通用的写法？可惜的是，在最开始我们是无法匹配到 `*.o` 文件的，因为起初我们只有 `*.c` 文件， `*.o` 文件是后来生成的。但转换一下思路，我们在获取所有源文件后，直接将 `.c` 后缀替换为 `.o`，不就能得到所有的 `.o` 文件了吗？正巧 patsubst 函数可以用于模式文本替换。
 
 ```makefile
 $(patsubst pattern,replacement,text)
 ```
 
-patsubst 函数的作用匹配文本 `text` 中匹配模式 `pattern` 的部分，并将匹配上的部分替换为内容 `replacement`。于是链接步骤可以改写为：
+patsubst 函数的作用是匹配 `text` 文本中与 `pattern` 模式相同的部分，并将匹配内容替换为 `replacement`。于是链接步骤可以改写为：
 
 ```makefile
 SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
@@ -678,11 +680,280 @@ main : $(OBJS)
         gcc $(OBJS) -o main
 ```
 
+![Makefile中的patsubst函数](.\Makefile中的patsubst函数.png)
 
+这里我们先用 wildcard 函数获取所有的 `.c` 文件，并将结果保存在 `SRCS` 中，接着利用 patsubst 函数替换 `SRCS` 的内容，将所有的 `.c` 替换为 `.o` 以获得编译步骤最终得到的目标文件。
 
-# 丰富Makefile的功能
+最后我们的 `Makefile` 就可以改写为：
+
+```makefile
+SUBDIR := .
+SUBDIR += ./func
+
+INCS := $(foreach dir,$(SUBDIR),-I$(dir))
+SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
+
+main : ./entry.o ./func/bar.o
+        gcc ./entry.o ./func/bar.o -o main
+
+%.o : %.c
+        gcc -c $(INCS) $^ -o $@
+```
+
+试试效果：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ rm main
+gee@JiPing_Desktop:~/workspace/example$ rm ./func/bar.o
+gee@JiPing_Desktop:~/workspace/example$ rm ./entry.o
+gee@JiPing_Desktop:~/workspace/example$ make
+gcc -c -I. -I./func entry.c -o entry.o
+gcc -c -I. -I./func func/bar.c -o func/bar.o
+gcc ./entry.o ./func/bar.o -o main
+gee@JiPing_Desktop:~/workspace/example$ ./main
+保持开心！
+|************************ |
+```
+
+看起来没有太大问题（但仔细看还是会发现，编译时 `./` 被吃了）！至此我们解决了第一个问题，按照流程，接下来我们应该来解决第二个问题，但不幸的是，第二个问题我还没有全部弄明白，只知道可以在执行 `gcc` 是指定 `-MM` 选项，来自动生成保存头文件的依赖的 `*.d` 文件。所以这个问题留给下一篇文章解决吧！
+
+# 丰富完善Makefile的功能
+
+到目前为止，我们已经写出足够使用的 Makefile 文件了，接下来我们可以继续完善它的功能。
+
+## 指定*.o文件的输出路径
+
+细心的你可能会发现，目前编译得到的 `.o` 文件，都是放在与 `.c` 文件同一级目录下的，从代码编辑的习惯上考虑，这可能会使我们无法方便地寻找源文件或头文件。
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ tree
+.
+├── Makefile
+├── entry.c
+├── entry.o
+├── func
+│   ├── bar.c
+│   ├── bar.h
+│   └── bar.o
+└── main
+```
+
+所以理想的做法是将 `*.o` 文件保存至指定目录，与源文件和头文件区分开：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ tree
+.
+├── Makefile
+├── entry.c
+├── func
+│   ├── bar.c
+│   └── bar.h
+├── main
+└── output
+    ├── entry.o
+    └── func
+        └── bar.o
+```
+
+怎么样实现呢？当然是通过 Makefile 实现，先来看一下单个 `.o` 文件怎么输出到指定文件夹：
+
+```makefile
+./output/func/bar.o : ./func/bar.c
+        mkdir -p ./output/func
+        gcc -c $(INCS) ./func/bar.c -o ./output/func/bar.o
+```
+
+我们解决问题的思路是：把输出目录下的 `.o` 文件作为编译目标，原始目录下的 `.c` 文件作为依赖，来编译得到目标文件。这里我们需要解决两个问题：1. 如何得到 `./output/func/bar.o` 这个路径；2. 如何保证 `./output/func` 目录存在。
+
+问题1我们可以在执行 patsubst 函数时解决，就像这样：
+
+```makefile
+OUTPUT := ./output
+SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
+OBJS := $(patsubst %.c,$(OUTPUT)/%.o,$(SRCS))
+```
+
+在替换 `.c` 的同时，在内容头部添加输出路径 `./output/`，这样 `./func/bar.c` 就会替换成 `./output/func/bar.o`。
+
+接着问题2我们可以使用 mkdir 命令配合 dir 函数解决，dir 函数可以从文本中获得路径，配合 mkdir -p 命令创建目录，可以确保输出路径存在：
+
+```makefile
+mkdir -p $(dir ./output/func/bar.o)
+```
+
+dir 函数会把 `./output/func/bar.o` 修改成 `./output/func`，于是上面的命令就变为了：
+
+```makefile
+mkdir -p ./func/func
+```
+
+通过修改 Makefile 来一起解决两个问题：
+
+```makefile
+SUBDIR := ./
+SUBDIR += ./func
+
+OUTPUT := ./output
+
+INCS := $(foreach dir,$(SUBDIR),-I$(dir))
+SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
+OBJS := $(patsubst %.c,$(OUTPUT)/%.o,$(SRCS))
+
+main : $(OBJS)
+        gcc $(OBJS) -o main
+
+$(OUTPUT)/%.o : %.c
+        mkdir -p $(dir $@)
+        gcc -c $(INCS) $^ -o $@
+```
+
+这里我们还在 `%.o` 前面加了 `$(OUTPUT)/`，确保匹配到的目标是要生成在输出目录的目标。
+
+测试一下，是可以使用的：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ rm entry.o
+gee@JiPing_Desktop:~/workspace/example$ rm ./func/bar.o
+gee@JiPing_Desktop:~/workspace/example$ make
+mkdir -p output/.//
+gcc -c -I./ -I./func entry.c -o output/.//entry.o
+mkdir -p output/./func/
+gcc -c -I./ -I./func func/bar.c -o output/./func/bar.o
+gcc ./output/.//entry.o ./output/./func/bar.o -o main
+```
 
 ## 伪目标
+
+我们可以通过向 `.PHONY` 添加一些依赖，来定义一些伪目标，比如定义一个 `clean` 目标，用于输出文件的清理：
+
+```makefile
+.PHONY : clean
+
+OUTPUT := ./output
+clean:
+        rm -r $(OUTPUT)
+```
+
+修改后执行 `make` 命令时传入参数 `clean` 就会执行 `clean` 目标下的语句：
+
+```makefile
+gee@JiPing_Desktop:~/workspace/example$ vim ./Makefile
+gee@JiPing_Desktop:~/workspace/example$ make clean
+rm -r ./output
+```
+
+在没有解决头文件依赖问题时，`clean` 后重新编译，也是一种临时解决方案。
+
+## 简化终端输出
+
+现在我们的 Makefile 所输出的内容会有些杂乱无章，我们很难直观看出哪条命令在编译哪个文件。所以我们常通过 `@` 符号，来禁止 Makefile 将执行的命令输出至终端上：
+
+```shell
+$(OUTPUT)/%.o : %.c
+        mkdir -p $(dir $@)
+        @gcc -c $(INCS) $^ -o $@
+```
+
+添加 `@` 符号后，编译命令 `gcc -c $(INCS) $^ -o $@` 就不会输出在终端上了：
+
+```makefile
+gee@JiPing_Desktop:~/workspace/example$ make
+mkdir -p output/.//
+mkdir -p output/./func/
+gcc ./output/.//entry.o ./output/./func/bar.o -o main
+```
+
+同时你可能注意到 Makefile 中是可以使用终端命令的，所以我们可以用 echo 命令来拟定自己的输出信息：
+
+```makefile
+SUBDIR := ./
+SUBDIR += ./func
+
+OUTPUT := ./output
+
+INCS := $(foreach dir,$(SUBDIR),-I$(dir))
+SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
+OBJS := $(patsubst %.c,$(OUTPUT)/%.o,$(SRCS))
+
+main : $(OBJS)
+        @echo linking...
+        @gcc $(OBJS) -o main
+        @echo Complete!
+
+$(OUTPUT)/%.o : %.c
+        @echo compile $^...
+        @mkdir -p $(dir $@)
+        @gcc -c $(INCS) $^ -o $@
+
+.PHONY : clean
+
+clean:
+        @echo try to clean...
+        @rm -r $(OUTPUT)
+        @echo Complete!
+```
+
+这是修改 `Makefile` 后再次执行 `make` 时，终端的输出：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ make clean
+try to clean...
+Complete!
+gee@JiPing_Desktop:~/workspace/example$ make
+compile entry.c...
+compile func/bar.c...
+linking...
+Complete!
+```
+
+相比之前简洁了许多！
+
+## 通用模板
+
+文章的末尾，放一个通用的 Makefile 模板吧！（注：头文件依赖的问题这里还没有解决）
+
+```makefile
+ROOT := $(shell pwd)
+
+SUBDIR := $(ROOT)
+SUBDIR += 
+
+TARGET := main
+OUTPUT := ./output
+
+INCS := $(foreach dir,$(SUBDIR),-I$(dir))
+SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
+OBJS := $(patsubst $(ROOT)/%.c,$(OUTPUT)/%.o,$(SRCS))
+
+$(TARGET) : $(OBJS)
+        @echo linking...
+        @gcc $(OBJS) -o $(TARGET)
+        @echo Complete!
+
+$(OUTPUT)/%.o : %.c
+        @echo compile $^...
+        @mkdir -p $(dir $@)
+        @gcc -c $(INCS) $^ -o $@
+
+.PHONY : clean
+
+clean:
+        @echo try to clean...
+        @rm -r $(OUTPUT)
+        @echo Complete!
+```
+
+# 结语
+
+在一开始写单片机的时候，我更多是依赖 IDE 提供的编译环境，所以对于头文件包含、配置路径这些操作没有很深入的了解。
+
+有时候只修改一个头文件，代码就要编译好久，比修改好几个源文件所花费的时间要长很多，放在以前我是肯定不知道原因的，但是现在知道了：如果有特别多源文件包含了同一个头文件，那修改这个头文件时，那些包含了这个头文件的源文件都要重新编译一次，这就是编译耗时很长的原因。
+
+这个事情给了我一些启发，当我们向深层去挖掘的时候，很可能能找到一套理论来解释我们遇到的问题。这对我们写代码是有用处的，知道哪些东西会引发问题，我们就可以提前避开这些危险的东西。
+
+所以保持思考，坚持学习，不为了其它，只为了解决更多的问题！
+
+最后的最后，今天是3月30日，祝生日快乐！！
 
 # 参考链接
 
@@ -695,4 +966,5 @@ main : $(OBJS)
 
 > 文章名：					《写给初学者的Makefile入门指南》
 > 作者：						吉平.集
-> 写作日期：				2023.3.6 ~ 2023.3.25
+> 写作日期：				2023.3.6 ~ 2023.3.30
+> 发布日期：				2023.3.30
