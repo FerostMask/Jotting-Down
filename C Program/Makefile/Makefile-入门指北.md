@@ -168,12 +168,12 @@ void Print_Progress_Bar(float comp)
 ```
 
 ```c
-/* entry.c */
 #include <stdio.h>
+
+void Print_Progress_Bar(float comp);
 
 int main(void)
 {
-        extern void Print_Progress_Bar(float comp);
         printf("Hello from new main!\n");
         Print_Progress_Bar(33.0f/100.0f);
         return 0;
@@ -310,7 +310,7 @@ foo ?= Huh?
 
 # 动手写进阶的Makefile
 
-到目前为止，我们已经写出一个简单能用的Makefile了，它能应对不太复杂的场景，在没有多级目录的情况下已经足够使用。但我们实际面对的场景往往要复杂得多：源文件和头文件按照功能或层级区分，散落在一个个子文件夹下，这样做更容易管理工程文件，但也带来了一点小麻烦。
+到目前为止，我们已经写出一个简单能用的Makefile了，它能应对不太复杂的场景，在没有多级目录的情况下已经足够使用。但我们实际面对的场景往往要复杂得多：源文件和头文件按照功能或层级区分，散落在一个个子文件夹下，这样做更容易管理工程文件，但也带来了两点小麻烦。
 
 先让我们先改造一下当前的目录结构，使其更贴合实际应用场景：
 
@@ -326,28 +326,75 @@ gee@JiPing_Desktop:~/workspace/example$ tree
 
 gee@JiPing_Desktop:~/workspace/example$ mkdir ./func
 gee@JiPing_Desktop:~/workspace/example$ mv ./bar.c ./func/
+gee@JiPing_Desktop:~/workspace/example$ vim ./func/bar.h
+gee@JiPing_Desktop:~/workspace/example$ vim ./entry.c
 gee@JiPing_Desktop:~/workspace/example$ tree
 .
 ├── Makefile
 ├── entry.c
 ├── func
-│   └── bar.c
+│   ├── bar.c
+│   └── bar.h
 └── main
 ```
 
-这里我新建了目录 `func`，并将 `bar.c` 转移到了 `func` 目录下。现在再让我们尝试执行 `make`，看看会发生什么：
+这里我新建了目录 `func`，并将 `bar.c` 转移到了 `func` 目录下，同时在 `func` 目录下创建了头文件 `bar.h`。然后在 `entry.c` 中将手动声明函数改为了头文件包含：
 
-```shell
-gee@JiPing_Desktop:~/workspace/example$ vim entry.c
-gee@JiPing_Desktop:~/workspace/example$ make
-gcc entry.c -o main											<- 缺少bar.c
-/usr/bin/ld: /tmp/ccgUc9na.o: in function `main':
-entry.c:(.text+0x22): undefined reference to `Print_Progress_Bar'
-collect2: error: ld returned 1 exit status
-make: *** [Makefile:4: main] Error 1
+```c
+// bar.h
+// 函数声明
+void Print_Progress_Bar(float comp);
 ```
 
-我们察觉到执行 `make` 时发生了错误，提示主函数中调用了未定义的函数 `Print_Progress_Bar`，这个函数定义在 `bar.c` 中。仔细观察可以发现 `gcc` 的调用中缺少 `bar.c`，这就引发了我们遇到的问题。显然在 `bar.c` 装进 `./func` 目录后，`Makefile` 就找不到 `bar.c` 文件了，这就是我们在刚才提到的小麻烦。
+```c
+// entry.c
+#include <stdio.h>
+#include <bar.h>
+
+int main(void)
+{
+        printf("Hello from new main!\n");
+        Print_Progress_Bar(52.0f/100.0f);
+        return 0;
+}
+```
+
+现在再让我们尝试执行 `make`，看看会发生什么：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ make
+gcc entry.c -o main
+entry.c:2:10: fatal error: bar.h: No such file or directory
+    2 | #include <bar.h>
+      |          ^~~~~~~
+compilation terminated.
+make: *** [Makefile:8: main] Error 1
+```
+
+首先出现的问题是编译 `entry.c` 时提示找不到 `bar.h` 的头文件，这是编译时没有指定到哪些路径下寻找头文件导致的，解决办法是执行 `gcc` 命令时通过 `-I` 选项指定头文件所在路径：
+
+```makefile
+# Makefile
+INCS := -I./func
+SRCS := $(wildcard *.c)
+
+main : $(SRCS)
+        gcc $(INCS) $(SRCS) -o main
+```
+
+再来执行make：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ vim Makefile
+gee@JiPing_Desktop:~/workspace/example$ make
+gcc -I./func entry.c -o main									<- 缺少bar.c
+/usr/bin/ld: /tmp/ccaX7UmM.o: in function `main':
+entry.c:(.text+0x22): undefined reference to `Print_Progress_Bar'
+collect2: error: ld returned 1 exit status
+make: *** [Makefile:9: main] Error 1
+```
+
+我们察觉到执行 `make` 时又发生了错误，提示主函数中调用了未定义的函数 `Print_Progress_Bar`，这个函数定义在 `bar.c` 中。仔细观察可以发现 `gcc` 的调用中缺少 `bar.c`，这就引发了我们遇到的问题。显然在 `bar.c` 装进 `./func` 目录后，`Makefile` 就找不到 `bar.c` 文件了，这就是我们在刚才提到的小麻烦。
 
 ## 应对复杂的目录结构
 
@@ -355,11 +402,12 @@ make: *** [Makefile:4: main] Error 1
 
 ```makefile
 # Makefile
+INCS := -I./func
 SRCS := $(wildcard *.c)
 SRCS += $(wildcard ./func/*.c)
 
 main : $(SRCS)
-        gcc $(SRCS) -o main
+        gcc $(INCS) $(SRCS) -o main
 ```
 
 尝试执行下：
@@ -367,7 +415,7 @@ main : $(SRCS)
 ```shell
 gee@JiPing_Desktop:~/workspace/example$ vim Makefile
 gee@JiPing_Desktop:~/workspace/example$ make
-gcc entry.c ./func/bar.c -o main
+gcc -I./func entry.c ./func/bar.c -o main
 ```
 
 可以看到问题得到了解决。但这样的解决方案还是存在着缺点的，它不够通用和直观，我们很难从中看出使用了哪些路径。或许还有什么办法能将 `Makefile` 写得更清晰一些。
@@ -378,15 +426,9 @@ gcc entry.c ./func/bar.c -o main
 # Makefile
 SUBDIR := .
 SUBDIR += ./func
-
-SRCS := $(wildcard *.c)
-SRCS += $(wildcard ./func/*.c)
-
-main : $(SRCS)
-        gcc $(SRCS) -o main
 ```
 
-这里新定义了变量 `SUBDIR`，我们将使用它来指定那些存放着源文件和头文件的目录。接下来我们将请出另一个功能强大的函数 foreach 来帮助我们完成一项复杂的功能。
+这里定义了变量 `SUBDIR`，我们将使用它来指定那些存放着源文件和头文件的目录。接下来我们将请出另一个功能强大的函数 foreach 来帮助我们完成一项复杂的功能。
 
 ```makefile
 $(foreach var,list,text)
@@ -404,18 +446,18 @@ EXPANDED := $(foreach dir,$(SUBDIR),$(dir)/*.c)
 
 ![foreach函数](.\foreach函数.png)
 
-有了 foreach 函数，我们就能配合 wildcard 函数，通过指定路径来获取源文件：
+有了 foreach 函数，我们就能配合 wildcard 函数，通过指定路径来获取源文件，并指定头文件所在路径：
 
 ```makefile
 # Makefile
 SUBDIR := .
 SUBDIR += ./func
 
-# 获取源文件
+INCS := $(foreach dir,$(SUBDIR),-I$(dir))
 SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
 
 main : $(SRCS)
-        gcc $(SRCS) -o main
+        gcc $(INCS) $(SRCS) -o main
 ```
 
 在终端里试试效果（可以使用 `rm ./main` 移除可执行文件，来确保 `make` 会执行编译命令）：
@@ -424,12 +466,217 @@ main : $(SRCS)
 gee@JiPing_Desktop:~/workspace/example$ vim ./Makefile
 gee@JiPing_Desktop:~/workspace/example$ rm ./main
 gee@JiPing_Desktop:~/workspace/example$ make
-gcc ./entry.c ./func/bar.c -o main
+gcc -I. -I./func ./entry.c ./func/bar.c -o main
 ```
 
 它可以正常工作，且效果与之前是一致的。现在来看，指定路径的做法较之前并没有太大的优势，我们要做的仍是手动指定目录，只是将获取源文件的任务交给了 foreach 函数来完成。在后面，我们会继续深入了解 Makefile，到时指定路径的优势会逐渐显现。
 
 ## 分析编译过程
+
+到目前为止，我们的示例程序还保持着较短的编译、链接时间。但当源文件逐渐增多后，只改动其中一个源文件，我们还能在短时间内获得可执行文件吗？为了解答这个问题，我们先来回顾一下编译、链接的过程。
+
+源文件和头文件需要经过四个步骤才能得到可执行文件，分别是预处理、编译、汇编和链接。
+
+- 预处理：预处理器将以字符 `#` 开头的命令展开、插入到原始的C程序中。比如我们在源文件中能经常看到的、用于头文件包含的 `#include` 命令，它的功能就是告诉预编译器，将指定头文件的内容插入的程序文本中。
+
+![预处理演示](D:\projects\Jotting-Down\C Program\Makefile\预处理演示.png)
+
+- 编译阶段：编译器将文本文件 `*.i` 翻译成文本文件 `*.s`，它包含一个汇编语言程序。
+- 汇编阶段：汇编器将 `*.s` 翻译成机器语言指令，把这些指令打包成可重定位目标程序（relocatable object program）的格式，并保存在 `*.o` 文件中。
+- 链接阶段：在 `bar.c` 中我们定义了 `Print_Progress_Bar` 函数，该函数会保存在目标文件 `bar.o` 中。直到链接阶段，链接器才以某种方式将 `Print_Progress_Bar` 函数合并到 `main` 函数中去。在链接时如果没有指定 `bar.o`，链接器就无法找到 `Print_Progress_Bar` 函数，也就会提示找不到相关函数的定义。
+
+## 保存 *.o 文件
+
+从编译过程的分析中，我们能找到当前 `Makefile` 存在的两点问题：
+
+1. 没有保存 `.o` 文件，这导致我们每次文件变动都要重新执行预处理、编译和汇编来得到目标文件，即使新得到的文件与旧文件完全没有差别（即编译用到的源文件没有任何变化，就跟` bar.c` 一样）。
+2. 有保存 `.o` 文件，则会遇到第二个问题，即依赖中没有指定头文件，这意味着只修改头文件的情况下，源文件不会重新编译得到新的可执行文件！
+
+![一开始的编译过程](D:\projects\Jotting-Down\C Program\Makefile\一开始的编译过程.png)
+
+为了证明以上两个问题，我们对 `Makefile` 做一些改动：
+
+```makefile
+INCS := -I. -I./func
+
+main : ./entry.o ./func/bar.o
+        gcc ./entry.o ./func/bar.o -o main
+
+./entry.o : ./entry.c
+        gcc -c $(INCS) ./entry.c -o ./entry.o
+
+./func/bar.o : ./func/bar.c
+        gcc -c $(INCS) ./func/bar.c -o ./func/bar.o
+```
+
+`gcc` 命令指定 `-c` 选项后，会只执行编译步骤，而不执行链接步骤，最后得到 `*.o` 文件。这里我们添加新的目标和依赖，目的是编译得到 `main.o bar.o`，再手动将它们链接为可执行文件 `main`。值得一提的是 Makefile 文件会自动匹配依赖和目标，如果依赖的依赖有更新，则目标文件也会得到更新。
+
+现在让我们看看 `make` 执行的效果：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ vim Makefile
+gee@JiPing_Desktop:~/workspace/example$ rm main
+gee@JiPing_Desktop:~/workspace/example$ make
+gcc -c -I. -I./func ./entry.c -o ./entry.o
+gcc -c -I. -I./func ./func/bar.c -o ./func/bar.o
+gcc ./entry.o ./func/bar.o -o main
+```
+
+`make` 执行了我们指定的每一个步骤。现在让我们修改 `entry.c`，手动删除 `bar.o` 后再执行 `make`。（模拟不保存 `*.o` 文件的情况）
+
+```c
+// main.c
+#include <stdio.h>
+#include <bar.h>
+
+int main(void)
+{
+        printf("Happy Birth Day!\n");
+        Print_Progress_Bar(33.0f/100.0f);
+        return 0;
+}
+```
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ vim entry.c
+gee@JiPing_Desktop:~/workspace/example$ rm ./func/bar.o <- 删除bar.o
+gee@JiPing_Desktop:~/workspace/example$ make
+gcc -c -I. -I./func ./entry.c -o ./entry.o				<- 重新编译entry.o
+gcc -c -I. -I./func ./func/bar.c -o ./func/bar.o		<- 重新编译bar.o
+gcc ./entry.o ./func/bar.o -o main
+gee@JiPing_Desktop:~/workspace/example$ ./main
+Happy Birth Day!
+|********                 |
+```
+
+我们不仅重新编译了 `entry.o`，还重新编译了 `bar.o`，现在再试试保存 `bar.o` 的情况下执行 `make`。
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ vim entry.c
+gee@JiPing_Desktop:~/workspace/example$ make
+gcc -c -I. -I./func ./entry.c -o ./entry.o				<- 仅重新编译entry.o
+gcc ./entry.o ./func/bar.o -o main
+gee@JiPing_Desktop:~/workspace/example$ ./main
+保持开心！
+|********                 |
+```
+
+可以发现，相较于不保存 `bar.o` 的情况，我们少执行了 `bar.o` 的编译步骤，这对于工程文件编译速度的提升，可能是巨大的！
+
+现在再让我们尝试修改 `bar.h`。
+
+```c
+// bar.h
+// 注：#ifndef配合#define用于避免源文件重复包含同一头文件的内容
+#ifndef _BAR_H
+#define _BAR_H
+// 函数声明
+void Print_Progress_Bar(float comp);
+#endif
+```
+
+执行 `make` ：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ vim ./func/bar.h
+gee@JiPing_Desktop:~/workspace/example$ make
+make: 'main' is up to date.
+```
+
+不出所料，源文件果然没有重新编译。
+
+## 模式规则和自动变量
+
+我们依旧来解决问题，首先是 `*.o` 文件的保存问题，这个问题其实在上面已经解决了，我们再来看一遍：
+
+```makefile
+SUBDIR := .
+SUBDIR += ./func
+
+INCS := $(foreach dir,$(SUBDIR),-I$(dir))
+SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
+
+main : ./entry.o ./func/bar.o
+        gcc ./entry.o ./func/bar.o -o main
+
+./entry.o : ./entry.c
+        gcc -c $(INCS) ./entry.c -o ./entry.o
+
+./func/bar.o : ./func/bar.c
+        gcc -c $(INCS) ./func/bar.c -o ./func/bar.o
+```
+
+通过手动添加目标和依赖，我们实现了 `*.o` 文件的保存，并且确保了源文件在更新后，只会最小限度的重新编译 `*.o` 文件。现在我们可以利用上符号 `%` 和自动变量，来让 `Makefile` 变得更加通用。首先聚焦于：
+
+```makefile
+./entry.o : ./entry.c
+        gcc -c $(INCS) ./entry.c -o ./entry.o
+
+./func/bar.o : ./func/bar.c
+        gcc -c $(INCS) ./func/bar.c -o ./func/bar.o
+```
+
+可以发现新添加的、用于生成 `*.o` 文件的目标和依赖，有着相同的书写模式，这意味着存在通用的写法：
+
+```makefile
+%.o : %.c
+        gcc -c $(INCS) $^ -o $@
+```
+
+这里我们用上了 `%` ，它的作用有些难以用语言概括，上述例子中， `%.o` 的作用是匹配所有以 `.o` 结尾的目标；而后面的 `%.c` 的中 `%` 的作用，则是将 `%.o` 中 `%` 的内容原封不动的挪过来用。
+
+更具体地例子是，`%.o` 可能匹配到目标 `./entry.o` 或 `./func/bar.o`，这样 `%` 的内容就会是 `./entry` 或 `./func/bar`，最后交给 `%.c` 时就变成了 `./entry.c` 或 `./func/bar.c`。
+
+另外我们还使用到了自动变量 `$^ $@`，其中 `$^` 指代依赖列表中的第一个依赖；而 `$@` 指代目标。注意自动变量与普通变量不同，它不使用小括号。
+
+结合起来使用，我们就得到了通用的生成 `*.o` 文件的写法：
+
+```makefile
+# Makefile
+SUBDIR := .
+SUBDIR += ./func
+
+INCS := $(foreach dir,$(SUBDIR),-I$(dir))
+SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
+
+main : ./entry.o ./func/bar.o
+        gcc ./entry.o ./func/bar.o -o main
+
+%.o : %.c
+        gcc -c $(INCS) $^ -o $@
+```
+
+## patsubst 函数
+
+接下来再让我们聚焦于链接步骤，它需要指定 `*.o` 文件：
+
+```makefile
+main : ./entry.o ./func/bar.o
+        gcc ./entry.o ./func/bar.o -o main
+```
+
+这看起来十分眼熟，我们最初解决多文件编译问题时也是采用类似的写法，只有文件后缀不一样：
+
+```makefile
+main : ./entry.c ./func/bar.c
+        gcc ./entry.c ./func/bar.c -o main
+```
+
+这给了我们一点提示，是不是能够通过 wildcard 函数来实现通用的写法？很可惜，最开始我们只有 `*.c` 文件， `*.o` 文件是后来生成的。但转换一下思路，我们在获取所有源文件后，直接将 `.c` 后缀替换为 `.o`，不就能得到所有的 `.o` 文件了吗？正巧 patsubst 函数可以用于模式文本替换。
+
+```makefile
+$(patsubst pattern,replacement,text)
+```
+
+patsubst 函数的作用匹配文本 `text` 中匹配模式 `pattern` 的部分，并将匹配上的部分替换为内容 `replacement`。于是链接步骤可以改写为：
+
+```makefile
+SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
+OBJS := $(patsubst %.c,%.o,$(SRCS))
+
+main : $(OBJS)
+        gcc $(OBJS) -o main
+```
 
 
 
@@ -444,6 +691,7 @@ gcc ./entry.c ./func/bar.c -o main
 - [GNU make](https://www.gnu.org/software/make/manual/make.html#Rule-Introduction)
 - [make - What does % symbol in Makefile mean](https://unix.stackexchange.com/questions/346322/what-does-symbol-in-makefile-mean)
 - [What do the makefile symbols $@ and $< mean?](https://stackoverflow.com/questions/3220277/what-do-the-makefile-symbols-and-mean)
+- [What does the '-c' option do in GCC?](https://stackoverflow.com/questions/14724315/what-does-the-c-option-do-in-gcc)
 
 > 文章名：					《写给初学者的Makefile入门指南》
 > 作者：						吉平.集
