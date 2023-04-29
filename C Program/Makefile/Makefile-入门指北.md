@@ -398,7 +398,7 @@ make: *** [Makefile:9: main] Error 1
 
 ## 应对复杂的目录结构
 
-首先还是让我们来看一下 `make` 的报错问题如何解决。方法很简单，在 `./func` 目录下也使用 wildcard 函数匹配一遍源文件，再把这些源文件一同添加到 `SRCS` 变量中就可以了：
+首先还是让我们来看一下 `make` 的报错问题如何解决。思路和方法很简单，使用 wildcard 函数在 `./func` 目录下也匹配一遍源文件，再把这些源文件一同添加到 `SRCS` 变量中就可以了：
 
 ```makefile
 # Makefile
@@ -434,7 +434,7 @@ SUBDIR += ./func
 $(foreach var,list,text)
 ```
 
-foreach(for each)函数的功能与 Python 和C语言中的 for 函数类似，但会更接近 Python 的 for函数。它的功能用语言描述就是：从 `list` 中逐个取出元素，赋值给 `var`，然后再展开 `text`，下面是一个使用示例。
+foreach(for each)函数的功能与 Python 和C语言中的 for 循环类似，但会更接近 Python 的 for 循环。它的功能描述起来就是：从 `list` 中逐个取出元素，赋值给 `var`，然后再展开 `text`。下面是一个使用示例。
 
 ```makefile
 SUBDIR := .
@@ -509,7 +509,7 @@ main : ./entry.o ./func/bar.o
         gcc -c $(INCS) ./func/bar.c -o ./func/bar.o
 ```
 
-`gcc` 命令指定 `-c` 选项后，会只执行编译步骤，而不执行链接步骤，最后得到 `*.o` 文件。这里我们添加新的目标和依赖，目的是编译得到 `main.o bar.o`，再手动将它们链接为可执行文件 `main`。值得一提的是 Makefile 文件会自动匹配依赖和目标，如果依赖的依赖有更新，则目标文件也会得到更新。
+`gcc` 命令指定 `-c` 选项后，会只执行编译步骤，而不执行链接步骤，最后得到 `*.o` 文件。这里我们添加新的目标和依赖，目的是编译得到 `main.o bar.o`，最后再手动将它们链接为可执行文件 `main`。值得一提的是 Makefile 文件会自动匹配依赖和目标，如果依赖的依赖有更新，则目标文件也会得到更新。
 
 现在让我们看看 `make` 执行的效果：
 
@@ -620,7 +620,7 @@ main : ./entry.o ./func/bar.o
 
 ```makefile
 %.o : %.c
-        gcc -c $(INCS) $^ -o $@
+        gcc -c $(INCS) $< -o $@
 ```
 
 ![Makefile编译的通用写法](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/Makefile%E7%BC%96%E8%AF%91%E7%9A%84%E9%80%9A%E7%94%A8%E5%86%99%E6%B3%95.png)
@@ -629,7 +629,7 @@ main : ./entry.o ./func/bar.o
 
 更具体地例子是，`%.o` 可能匹配到目标 `./entry.o` 或 `./func/bar.o`，这样 `%` 的内容就会是 `./entry` 或 `./func/bar`，最后交给 `%.c` 时就变成了 `./entry.c` 或 `./func/bar.c`。
 
-另外我们还使用到了自动变量 `$^ $@`，其中 `$^` 指代依赖列表中的第一个依赖；而 `$@` 指代目标。注意自动变量与普通变量不同，它不使用小括号。
+另外我们还使用到了自动变量 `$< $@`，其中 `$<` 指代依赖列表中的第一个依赖；而 `$@` 指代目标。注意自动变量与普通变量不同，它不使用小括号。
 
 结合起来使用，我们就得到了通用的生成 `*.o` 文件的写法：
 
@@ -645,7 +645,7 @@ main : ./entry.o ./func/bar.o
         gcc ./entry.o ./func/bar.o -o main
 
 %.o : %.c
-        gcc -c $(INCS) $^ -o $@
+        gcc -c $(INCS) $< -o $@
 ```
 
 ## patsubst 函数
@@ -682,9 +682,9 @@ main : $(OBJS)
 
 ![Makefile中的patsubst函数](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/Makefile%E4%B8%AD%E7%9A%84patsubst%E5%87%BD%E6%95%B0.png)
 
-这里我们先用 wildcard 函数获取所有的 `.c` 文件，并将结果保存在 `SRCS` 中，接着利用 patsubst 函数替换 `SRCS` 的内容，将所有的 `.c` 替换为 `.o` 以获得编译步骤最终得到的目标文件。
+这里我们先用 wildcard 函数获取所有的 `.c` 文件，并将结果保存在 `SRCS` 中，接着利用 patsubst 函数替换 `SRCS` 的内容，最后将所有的 `.c` 替换为 `.o` 以获得执行编译所得到的目标文件。
 
-最后我们的 `Makefile` 就可以改写为：
+于是我们的 `Makefile` 就可以改写为：
 
 ```makefile
 SUBDIR := .
@@ -692,12 +692,13 @@ SUBDIR += ./func
 
 INCS := $(foreach dir,$(SUBDIR),-I$(dir))
 SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
+OBJS := $(patsubst %.c,%.o,$(SRCS))
 
-main : ./entry.o ./func/bar.o
-        gcc ./entry.o ./func/bar.o -o main
+main : $(OBJS)
+        gcc $(OBJS) -o main
 
 %.o : %.c
-        gcc -c $(INCS) $^ -o $@
+        gcc -c $(INCS) $< -o $@
 ```
 
 试试效果：
@@ -715,7 +716,7 @@ gee@JiPing_Desktop:~/workspace/example$ ./main
 |************************ |
 ```
 
-看起来没有太大问题（但仔细看还是会发现，编译时 `./` 被吃了）！至此我们解决了第一个问题，按照流程，接下来我们应该来解决第二个问题，但不幸的是，第二个问题我还没有全部弄明白，只知道可以在执行 `gcc` 是指定 `-MM` 选项，来自动生成保存头文件的依赖的 `*.d` 文件。所以这个问题留给下一篇文章解决吧！
+看起来没有太大问题（但仔细看还是会发现，编译时 `./` 被吃了）！至此我们解决了第一个问题，而第二个问题，我们留到后面再解决。先让我们看看现在的 Makefile 还有哪些可以丰富和完善的功能。
 
 # 丰富完善Makefile的功能
 
@@ -804,7 +805,7 @@ main : $(OBJS)
 
 $(OUTPUT)/%.o : %.c
         mkdir -p $(dir $@)
-        gcc -c $(INCS) $^ -o $@
+        gcc -c $(INCS) $< -o $@
 ```
 
 这里我们还在 `%.o` 前面加了 `$(OUTPUT)/`，确保匹配到的目标是要生成在输出目录的目标。
@@ -851,10 +852,10 @@ rm -r ./output
 ```shell
 $(OUTPUT)/%.o : %.c
         mkdir -p $(dir $@)
-        @gcc -c $(INCS) $^ -o $@
+        @gcc -c $(INCS) $< -o $@
 ```
 
-添加 `@` 符号后，编译命令 `gcc -c $(INCS) $^ -o $@` 就不会输出在终端上了：
+添加 `@` 符号后，编译命令 `gcc -c $(INCS) $< -o $@` 就不会输出在终端上了：
 
 ```makefile
 gee@JiPing_Desktop:~/workspace/example$ make
@@ -881,9 +882,9 @@ main : $(OBJS)
         @echo Complete!
 
 $(OUTPUT)/%.o : %.c
-        @echo compile $^...
+        @echo compile $<...
         @mkdir -p $(dir $@)
-        @gcc -c $(INCS) $^ -o $@
+        @gcc -c $(INCS) $< -o $@
 
 .PHONY : clean
 
@@ -908,32 +909,56 @@ Complete!
 
 相比之前简洁了许多！
 
-## 通用模板
+## 自动生成依赖
 
-文章的末尾，放一个通用的 Makefile 模板吧！（注：头文件依赖的问题这里还没有解决）
+还记得修改头文件后，包含该头文件的源文件不会重新编译的问题吗？现在让我们试试看解决这个问题。
+
+问题的解决思路也很简单，就是将头文件一同加入到 *.o 文件的依赖中：
 
 ```makefile
-ROOT := $(shell pwd)
+./entry.o : ./entry.c ./func/bar.h
+        gcc -c $(INCS) ./entry.c -o ./entry.o
+```
 
-SUBDIR := $(ROOT)
-SUBDIR += 
+但这实现起来并不容易，我们需要在 Makefile 中为每个源文件单独添加头文件依赖，手动维护这些依赖关系会是一件极其痛苦的事情。幸运的是，gcc 提供了强大的自动生成依赖功能，仅需在编译时指定 `-MMD` 选项，我们就能得到记录有依赖关系的 *.d 文件。
 
-TARGET := main
+> `-MMD` 选项包含两个动作，一是生成依赖关系，二是保存依赖关系到 *.d 文件。与其类似的选项还有 `-MD`，其作用与 `-MMD` 相同，差别在于 `-MD` 选项会将系统头文件一同添加到依赖关系中。
+
+另外我们还可以指定 `-MP` 选项，这会为每个依赖添加一个没有任何依赖的伪目标。`-MP` 选项生成的伪目标，可以有效避免删除头文件时，Makefile 因找不到目标来更新依赖所报的错误：``make: *** No rule to make target 'dummy.h', needed by 'dummy.o'.  Stop.`。
+
+```shell
+gee@JiPing_Desktop:~/workspace/example_makefile$ gcc -MMD -MP -c -I. -I./func entry.c -o entry.o
+gee@JiPing_Desktop:~/workspace/example_makefile$ ls
+Makefile  entry.c  entry.d  entry.o  func  main  output
+gee@JiPing_Desktop:~/workspace/example_makefile$ cat entry.d
+entry.o: entry.c func/bar.h   <- 自动生成的依赖关系
+func/bar.h:                   <- 没有任何依赖的伪目标
+```
+
+我们需要将 *.d 文件记录的依赖关系，手动包含到 Makefile 中，才能使其真正发挥作用，所以 Makefile 又可以修改为：
+
+> `-MMD` 选项生成的 *.d 文件保存在与 *.o 文件相同的路径下。
+
+```makefile
+SUBDIR := ./
+SUBDIR += ./func
+
 OUTPUT := ./output
 
 INCS := $(foreach dir,$(SUBDIR),-I$(dir))
 SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
-OBJS := $(patsubst $(ROOT)/%.c,$(OUTPUT)/%.o,$(SRCS))
+OBJS := $(patsubst %.c,$(OUTPUT)/%.o,$(SRCS))
+DEPS := $(patsubst %.o,%.d,$(OBJS))
 
-$(TARGET) : $(OBJS)
+main : $(OBJS)
         @echo linking...
-        @gcc $(OBJS) -o $(TARGET)
+        @gcc $(OBJS) -o main
         @echo Complete!
 
 $(OUTPUT)/%.o : %.c
-        @echo compile $^...
+        @echo compile $<...
         @mkdir -p $(dir $@)
-        @gcc -c $(INCS) $^ -o $@
+        @gcc -MMD -MP -c $(INCS) $< -o $@
 
 .PHONY : clean
 
@@ -941,6 +966,48 @@ clean:
         @echo try to clean...
         @rm -r $(OUTPUT)
         @echo Complete!
+        
+-include $(DEPS)
+```
+
+最后一行的 `include` 用于将指定文件的内容插入到当前文本中，`include` 前的 `-` 符号用于指示 make 在 include 操作出错时（比如 include 的文件不存在）忽略这个错误，不输出任何错误信息并继续执行。
+
+## 通用模板
+
+文章的末尾，放一个通用的 Makefile 模板吧！
+
+```makefile
+ROOT := $(shell pwd)
+
+SUBDIR := $(ROOT)
+SUBDIR += $(ROOT)/func
+
+TARGET := main
+OUTPUT := ./output
+
+INCS := $(foreach dir,$(SUBDIR),-I$(dir))
+SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
+OBJS := $(patsubst $(ROOT)/%.c,$(OUTPUT)/%.o,$(SRCS))
+DEPS := $(patsubst %.o,%.d,$(OBJS))
+
+main : $(OBJS)
+        @echo linking...
+        @gcc $(OBJS) -o main
+        @echo complete!
+
+$(OUTPUT)/%.o : %.c
+        @echo compile $<...
+        @mkdir -p $(dir $@)
+        @gcc -MMD -MP -c $(INCS) $< -o $@
+
+.PHONY : clean
+
+clean:
+        @echo try to clean...
+        @rm -r $(OUTPUT)
+        @echo complete!
+
+include $(DEPS)
 ```
 
 # 结语
@@ -963,6 +1030,9 @@ clean:
 - [make - What does % symbol in Makefile mean](https://unix.stackexchange.com/questions/346322/what-does-symbol-in-makefile-mean)
 - [What do the makefile symbols $@ and $< mean?](https://stackoverflow.com/questions/3220277/what-do-the-makefile-symbols-and-mean)
 - [What does the '-c' option do in GCC?](https://stackoverflow.com/questions/14724315/what-does-the-c-option-do-in-gcc)
+- [Automatic Prerequisites (GNU make)](https://www.gnu.org/software/make/manual/html_node/Automatic-Prerequisites.html)
+- [c++ - makefile dependency generation - Code Review Stack Exchange](https://codereview.stackexchange.com/questions/2547/makefile-dependency-generation)
+- [Include (GNU make)](https://www.gnu.org/software/make/manual/html_node/Include.html)
 
 > 文章名：					《写给初学者的Makefile入门指南》
 > 作者：						吉平.集
