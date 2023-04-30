@@ -6,7 +6,7 @@ C语言程序从代码到可执行文件（\*.exe）需要经过预处理、编�
 
 一个项目通常有多个源文件，如果只修改其中一个，就对所有源文件重新执行编译、链接步骤，就太浪费时间了。因此十分有必要引入 Makefile 工具：Makefile 工具可以根据文件依赖，自动找出那些需要重新编译和链接的源文件，并对它们执行相应的动作。
 
-![编译链接过程](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/%E7%BC%96%E8%AF%91%E9%93%BE%E6%8E%A5%E8%BF%87%E7%A8%8B.png)
+![编译链接过程](D:\projects\Jotting-Down\C Program\Makefile\编译链接过程.png)
 
 # 开始前的准备
 
@@ -122,7 +122,7 @@ Hello from new main!
 
 > 延伸思考：目标、依赖和执行语句，三者在Makefile中是否缺一不可？在不修改源文件的前提下尝试修改目标，再执行make时会得到怎样的结果？
 
-![简单Makefile语句解析](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/%E7%AE%80%E5%8D%95Makefile%E8%AF%AD%E5%8F%A5%E8%A7%A3%E6%9E%90.png)
+![简单Makefile语句解析](D:\projects\Jotting-Down\C Program\Makefile\简单Makefile语句解析.png)
 
 上面的例子中，可执行文件 `main` 就是我们想要得到的目标，而 `main` 的生成依赖于 `main.c`，所以将 `main.c` 填写在依赖的位置。在发现目标文件不存在，或依赖的文件有所修改后，Makefile 就会执行下方的执行语句，其任务通常是生成目标文件。
 
@@ -418,7 +418,7 @@ gee@JiPing_Desktop:~/workspace/example$ make
 gcc -I./func entry.c ./func/bar.c -o main
 ```
 
-可以看到问题得到了解决。但这样的解决方案还是存在着缺点的，它不够通用和直观，我们很难从中看出使用了哪些路径。或许还有什么办法能将 `Makefile` 写得更清晰一些。
+可以看到问题得到了解决。但这样的方案还是存在缺点的，它不够通用和直观，从中我们很难看出哪些路径得到了使用。或许还有什么办法能将 `Makefile` 写得更清晰一些。
 
 如果你曾使用过一些 `IDE`，那你可能会对配置路径感到熟悉，这要求你将一些文件目录添加到工程文件配置中去。我们也可以效仿这样的做法，手动将目录添加到 `Makefile` 中去。
 
@@ -444,7 +444,7 @@ EXPANDED := $(foreach dir,$(SUBDIR),$(dir)/*.c)
 # 等效于EXPANDED := ./*.c ./func/*.c
 ```
 
-![foreach函数](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/foreach%E5%87%BD%E6%95%B0.png)
+![foreach函数](D:\projects\Jotting-Down\C Program\Makefile\foreach函数.png)
 
 有了 foreach 函数，我们就能配合 wildcard 函数，通过指定路径来获取源文件，并指定头文件所在路径：
 
@@ -479,7 +479,7 @@ gcc -I. -I./func ./entry.c ./func/bar.c -o main
 
 - 预处理：预处理器将以字符 `#` 开头的命令展开、插入到原始的C程序中。比如我们在源文件中能经常看到的、用于头文件包含的 `#include` 命令，它的功能就是告诉预编译器，将指定头文件的内容插入的程序文本中。
 
-![预处理演示](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/%E9%A2%84%E5%A4%84%E7%90%86%E6%BC%94%E7%A4%BA.png)
+![预处理演示](D:\projects\Jotting-Down\C Program\Makefile\预处理演示.png)
 
 - 编译阶段：编译器将文本文件 `*.i` 翻译成文本文件 `*.s`，它包含一个汇编语言程序。
 - 汇编阶段：汇编器将 `*.s` 翻译成机器语言指令，把这些指令打包成可重定位目标程序（relocatable object program）的格式，并保存在 `*.o` 文件中。
@@ -492,7 +492,7 @@ gcc -I. -I./func ./entry.c ./func/bar.c -o main
 1. 没有保存 `.o` 文件，这导致我们每次文件变动都要重新执行预处理、编译和汇编来得到目标文件，即使新得到的文件与旧文件完全没有差别（即编译用到的源文件没有任何变化，就跟` bar.c` 一样）。
 2. 有保存 `.o` 文件，则会遇到第二个问题，即依赖中没有指定头文件，这意味着只修改头文件的情况下，源文件不会重新编译得到新的可执行文件！
 
-![一开始的编译过程](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/%E4%B8%80%E5%BC%80%E5%A7%8B%E7%9A%84%E7%BC%96%E8%AF%91%E8%BF%87%E7%A8%8B.png)
+![一开始的编译过程](D:\projects\Jotting-Down\C Program\Makefile\一开始的编译过程.png)
 
 为了证明以上两个问题，我们对 `Makefile` 做一些改动：
 
@@ -536,6 +536,8 @@ int main(void)
         return 0;
 }
 ```
+
+试验下执行 `make` 的效果：
 
 ```shell
 gee@JiPing_Desktop:~/workspace/example$ vim entry.c
@@ -623,7 +625,7 @@ main : ./entry.o ./func/bar.o
         gcc -c $(INCS) $< -o $@
 ```
 
-![Makefile编译的通用写法](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/Makefile%E7%BC%96%E8%AF%91%E7%9A%84%E9%80%9A%E7%94%A8%E5%86%99%E6%B3%95.png)
+![Makefile编译的通用写法](D:\projects\Jotting-Down\C Program\Makefile\Makefile编译的通用写法.png)
 
 这里我们用上了 `%` ，它的作用有些难以用语言概括，上述例子中， `%.o` 的作用是匹配所有以 `.o` 结尾的目标；而后面的 `%.c` 中 `%` 的作用，则是将 `%.o` 中 `%` 的内容原封不动的挪过来用。
 
@@ -680,7 +682,7 @@ main : $(OBJS)
         gcc $(OBJS) -o main
 ```
 
-![Makefile中的patsubst函数](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/Makefile%E4%B8%AD%E7%9A%84patsubst%E5%87%BD%E6%95%B0.png)
+![Makefile中的patsubst函数](D:\projects\Jotting-Down\C Program\Makefile\Makefile中的patsubst函数.png)
 
 这里我们先用 wildcard 函数获取所有的 `.c` 文件，并将结果保存在 `SRCS` 中，接着利用 patsubst 函数替换 `SRCS` 的内容，最后将所有的 `.c` 替换为 `.o` 以获得执行编译所得到的目标文件。
 
@@ -716,7 +718,7 @@ gee@JiPing_Desktop:~/workspace/example$ ./main
 |************************ |
 ```
 
-看起来没有太大问题（但仔细看还是会发现，编译时 `./` 被吃了）！至此我们解决了第一个问题，而第二个问题，我们留到后面再解决。先让我们看看现在的 Makefile 还有哪些可以丰富和完善的功能。
+看起来没有太大问题（但仔细看还是会发现，编译时 `./` 被吃了）！至此我们解决了第一个问题，而第二个问题，我们留到后面再解决。现在先让我们看看 Makefile 还有哪些可以丰富和完善的功能。
 
 # 丰富完善Makefile的功能
 
@@ -724,7 +726,7 @@ gee@JiPing_Desktop:~/workspace/example$ ./main
 
 ## 指定*.o文件的输出路径
 
-细心的你可能会发现，目前编译得到的 `.o` 文件，都是放在与 `.c` 文件同一级目录下的，从代码编辑的习惯上考虑，这可能会使我们无法方便地寻找源文件或头文件。
+细心的你可能会发现，目前编译得到的 `.o` 文件，都是放在与 `.c` 文件同一级目录下的，从代码编辑习惯考虑，这可能会导致我们无法方便地寻找源文件或头文件。
 
 ```shell
 gee@JiPing_Desktop:~/workspace/example$ tree
@@ -739,7 +741,7 @@ gee@JiPing_Desktop:~/workspace/example$ tree
 └── main
 ```
 
-所以理想的做法是将 `*.o` 文件保存至指定目录，与源文件和头文件区分开：
+理想的做法是将 `*.o` 文件保存至指定目录，与源文件和头文件区分开：
 
 ```shell
 gee@JiPing_Desktop:~/workspace/example$ tree
@@ -756,7 +758,7 @@ gee@JiPing_Desktop:~/workspace/example$ tree
         └── bar.o
 ```
 
-怎么样实现呢？当然是通过 Makefile 实现，先来看一下单个 `.o` 文件怎么输出到指定文件夹：
+但应该如何实现呢？先来看一下单个 `.o` 文件怎么输出到指定文件夹：
 
 ```makefile
 ./output/func/bar.o : ./func/bar.c
@@ -825,7 +827,7 @@ gcc ./output/.//entry.o ./output/./func/bar.o -o main
 
 ## 伪目标
 
-我们可以通过向 `.PHONY` 添加一些依赖，来定义一些伪目标，比如定义一个 `clean` 目标，用于输出文件的清理：
+我们可以通过向 `.PHONY` 添加一些依赖，来定义一些伪目标，比如定义一个 `clean` 目标，用于清理编译生成的过程文件：
 
 ```makefile
 .PHONY : clean
@@ -920,7 +922,7 @@ Complete!
         gcc -c $(INCS) ./entry.c -o ./entry.o
 ```
 
-但这实现起来并不容易，我们需要在 Makefile 中为每个源文件单独添加头文件依赖，手动维护这些依赖关系会是一件极其痛苦的事情。幸运的是，gcc 提供了强大的自动生成依赖功能，仅需在编译时指定 `-MMD` 选项，我们就能得到记录有依赖关系的 *.d 文件。
+但这实现起来并不容易，我们需要在 Makefile 中为每个源文件单独添加头文件依赖，手动维护这些依赖关系会是一件极其痛苦的事情。幸运的是，gcc 提供了强大的自动生成依赖功能，仅需在编译时指定 `-MMD` 选项，就能得到记录有依赖关系的 *.d 文件。
 
 > `-MMD` 选项包含两个动作，一是生成依赖关系，二是保存依赖关系到 *.d 文件。与其类似的选项还有 `-MD`，其作用与 `-MMD` 相同，差别在于 `-MD` 选项会将系统头文件一同添加到依赖关系中。
 
@@ -935,7 +937,7 @@ entry.o: entry.c func/bar.h   <- 自动生成的依赖关系
 func/bar.h:                   <- 没有任何依赖的伪目标
 ```
 
-我们需要将 *.d 文件记录的依赖关系，手动包含到 Makefile 中，才能使其真正发挥作用，所以 Makefile 又可以修改为：
+接着我们还需要将 *.d 文件记录的依赖关系，手动包含到 Makefile 中，这样才能使其真正发挥作用。所以 Makefile 又可以修改为：
 
 > `-MMD` 选项生成的 *.d 文件保存在与 *.o 文件相同的路径下。
 
@@ -970,7 +972,7 @@ clean:
 -include $(DEPS)
 ```
 
-最后一行的 `include` 用于将指定文件的内容插入到当前文本中，`include` 前的 `-` 符号用于指示 make 在 include 操作出错时（比如 include 的文件不存在）忽略这个错误，不输出任何错误信息并继续执行。
+最后一行的 `include` 用于将指定文件的内容插入到当前文本中。初次编译，或者 make clean 后再次编译时，*.d 文件是不存在的，这通常会导致 include 操作报错。所以我们在 `include` 前加了 `-` 符号，其作用是指示 make 在 include 操作出错时忽略这个错误，不输出任何错误信息并继续执行接下来的操作。
 
 ## 通用模板
 
@@ -1007,7 +1009,7 @@ clean:
         @rm -r $(OUTPUT)
         @echo complete!
 
-include $(DEPS)
+-include $(DEPS)
 ```
 
 # 结语
