@@ -6,7 +6,7 @@ C语言程序从代码到可执行文件（\*.exe）需要经过预处理、编�
 
 一个项目通常有多个源文件，如果只修改其中一个，就对所有源文件重新执行编译、链接步骤，就太浪费时间了。因此十分有必要引入 Makefile 工具：Makefile 工具可以根据文件依赖，自动找出那些需要重新编译和链接的源文件，并对它们执行相应的动作。
 
-![编译链接过程](D:\projects\Jotting-Down\C Program\Makefile\编译链接过程.png)
+![编译链接过程](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/%E7%BC%96%E8%AF%91%E9%93%BE%E6%8E%A5%E8%BF%87%E7%A8%8B.png)
 
 # 开始前的准备
 
@@ -122,7 +122,7 @@ Hello from new main!
 
 > 延伸思考：目标、依赖和执行语句，三者在Makefile中是否缺一不可？在不修改源文件的前提下尝试修改目标，再执行make时会得到怎样的结果？
 
-![简单Makefile语句解析](D:\projects\Jotting-Down\C Program\Makefile\简单Makefile语句解析.png)
+![简单Makefile语句解析](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/%E7%AE%80%E5%8D%95Makefile%E8%AF%AD%E5%8F%A5%E8%A7%A3%E6%9E%90.png)
 
 上面的例子中，可执行文件 `main` 就是我们想要得到的目标，而 `main` 的生成依赖于 `main.c`，所以将 `main.c` 填写在依赖的位置。在发现目标文件不存在，或依赖的文件有所修改后，Makefile 就会执行下方的执行语句，其任务通常是生成目标文件。
 
@@ -444,7 +444,7 @@ EXPANDED := $(foreach dir,$(SUBDIR),$(dir)/*.c)
 # 等效于EXPANDED := ./*.c ./func/*.c
 ```
 
-![foreach函数](D:\projects\Jotting-Down\C Program\Makefile\foreach函数.png)
+![foreach函数](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/foreach%E5%87%BD%E6%95%B0.png)
 
 有了 foreach 函数，我们就能配合 wildcard 函数，通过指定路径来获取源文件，并指定头文件所在路径：
 
@@ -479,7 +479,7 @@ gcc -I. -I./func ./entry.c ./func/bar.c -o main
 
 - 预处理：预处理器将以字符 `#` 开头的命令展开、插入到原始的C程序中。比如我们在源文件中能经常看到的、用于头文件包含的 `#include` 命令，它的功能就是告诉预编译器，将指定头文件的内容插入的程序文本中。
 
-![预处理演示](D:\projects\Jotting-Down\C Program\Makefile\预处理演示.png)
+![预处理演示](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/%E9%A2%84%E5%A4%84%E7%90%86%E6%BC%94%E7%A4%BA.png)
 
 - 编译阶段：编译器将文本文件 `*.i` 翻译成文本文件 `*.s`，它包含一个汇编语言程序。
 - 汇编阶段：汇编器将 `*.s` 翻译成机器语言指令，把这些指令打包成可重定位目标程序（relocatable object program）的格式，并保存在 `*.o` 文件中。
@@ -492,7 +492,7 @@ gcc -I. -I./func ./entry.c ./func/bar.c -o main
 1. 没有保存 `.o` 文件，这导致我们每次文件变动都要重新执行预处理、编译和汇编来得到目标文件，即使新得到的文件与旧文件完全没有差别（即编译用到的源文件没有任何变化，就跟` bar.c` 一样）。
 2. 有保存 `.o` 文件，则会遇到第二个问题，即依赖中没有指定头文件，这意味着只修改头文件的情况下，源文件不会重新编译得到新的可执行文件！
 
-![一开始的编译过程](D:\projects\Jotting-Down\C Program\Makefile\一开始的编译过程.png)
+![一开始的编译过程](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/%E4%B8%80%E5%BC%80%E5%A7%8B%E7%9A%84%E7%BC%96%E8%AF%91%E8%BF%87%E7%A8%8B.png)
 
 为了证明以上两个问题，我们对 `Makefile` 做一些改动：
 
@@ -625,7 +625,7 @@ main : ./entry.o ./func/bar.o
         gcc -c $(INCS) $< -o $@
 ```
 
-![Makefile编译的通用写法](D:\projects\Jotting-Down\C Program\Makefile\Makefile编译的通用写法.png)
+![Makefile编译的通用写法](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/Makefile%E7%BC%96%E8%AF%91%E7%9A%84%E9%80%9A%E7%94%A8%E5%86%99%E6%B3%95.png)
 
 这里我们用上了 `%` ，它的作用有些难以用语言概括，上述例子中， `%.o` 的作用是匹配所有以 `.o` 结尾的目标；而后面的 `%.c` 中 `%` 的作用，则是将 `%.o` 中 `%` 的内容原封不动的挪过来用。
 
@@ -682,7 +682,7 @@ main : $(OBJS)
         gcc $(OBJS) -o main
 ```
 
-![Makefile中的patsubst函数](D:\projects\Jotting-Down\C Program\Makefile\Makefile中的patsubst函数.png)
+![Makefile中的patsubst函数](https://ferost-myphotos.oss-cn-shenzhen.aliyuncs.com/Makefile%E4%B8%AD%E7%9A%84patsubst%E5%87%BD%E6%95%B0.png)
 
 这里我们先用 wildcard 函数获取所有的 `.c` 文件，并将结果保存在 `SRCS` 中，接着利用 patsubst 函数替换 `SRCS` 的内容，最后将所有的 `.c` 替换为 `.o` 以获得执行编译所得到的目标文件。
 
