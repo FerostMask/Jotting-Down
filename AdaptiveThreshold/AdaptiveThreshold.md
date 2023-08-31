@@ -23,6 +23,9 @@
 
 ```C
 #include "stdlib.h"
+#include "stdint.h"
+
+typedef uint8_t gray_t
 
 /**
  * @brief:   获取积分图像

@@ -827,11 +827,9 @@ gcc ./output/.//entry.o ./output/./func/bar.o -o main
 
 ## 伪目标
 
-我们可以通过向 `.PHONY` 添加一些依赖，来定义一些伪目标，比如定义一个 `clean` 目标，用于清理编译生成的过程文件：
+在 Makefile 中我们可以利用目标执行某些动作。比如定义一个 `clean` 目标，用于清理编译生成的过程文件：
 
 ```makefile
-.PHONY : clean
-
 OUTPUT := ./output
 clean:
         rm -r $(OUTPUT)
@@ -846,6 +844,41 @@ rm -r ./output
 ```
 
 在没有解决头文件依赖问题时，`clean` 后重新编译，也是一种临时解决方案。
+
+但这样做存在隐患：当前目录下有与目标同名的文件时，在没有依赖的情况下，Makefile 会认为目标文件已经是最新的状态了，目标下的语句也就不再执行。
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ tree
+.
+├── Makefile
+├── output
+└── clean
+gee@JiPing_Desktop:~/workspace/example$ make clean
+make: 'clean' is up to date.
+```
+
+为解决这一问题，我们可以将 `clean` 声明为伪目标，表明其并非是文件的命名。向特殊内置目标 `.PHONY` 添加 `clean` 依赖以达成这一目的：
+
+```shell
+.PHONY : clean
+
+OUTPUT := ./output
+clean:
+        rm -r $(OUTPUT)
+```
+
+添加上 `.PHONY : clean` 后再执行 `make clean`：
+
+```shell
+gee@JiPing_Desktop:~/workspace/example$ make clean
+rm -r ./output
+gee@JiPing_Desktop:~/workspace/example$ tree
+.
+├── Makefile
+└── clean
+```
+
+可以看到 `clean` 目标下的 `rm -r $(OUTPUT)` 得到了执行。
 
 ## 简化终端输出
 
@@ -992,9 +1025,9 @@ SRCS := $(foreach dir,$(SUBDIR),$(wildcard $(dir)/*.c))
 OBJS := $(patsubst $(ROOT)/%.c,$(OUTPUT)/%.o,$(SRCS))
 DEPS := $(patsubst %.o,%.d,$(OBJS))
 
-main : $(OBJS)
+$(TARGET) : $(OBJS)
         @echo linking...
-        @gcc $(OBJS) -o main
+        @gcc $(OBJS) -o $@
         @echo complete!
 
 $(OUTPUT)/%.o : %.c
